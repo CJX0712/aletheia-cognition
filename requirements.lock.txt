@@ -16,6 +16,6 @@ pypdf==6.18.1
 llama-cpp-python==0.3.19
 
 # ---- 开发 / 测试 (dev) ----
-pytest==8.4.2
+pytest==9.1.1
 httpx==0.28.1
 ruff==0.16.8
