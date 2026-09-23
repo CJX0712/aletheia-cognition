@@ -1,0 +1,21 @@
+# Aletheia 澄明 · 版本锁定依赖清单 (lock)
+# 环境: Python 3.13 / win_amd64 / Linux x86_64 — 所有包均提供预编译 wheel, 无需 C/C++ 编译器.
+# 由已验证可运行的虚拟环境导出. 干净环境一键复现: `make install` 或
+#   python -m pip install -r requirements.lock.txt
+# 镜像源(国内): 见 Makefile 中 PIP_INDEX 变量.
+
+# ---- 运行时 (runtime) ----
+fastapi==0.141.1
+uvicorn==0.53.0
+numpy==2.5.3
+onnxruntime==1.30.0
+tokenizers==0.23.2
+faiss-cpu==1.15.0
+rank-bm25==0.2.2
+pypdf==6.18.1
+llama-cpp-python==0.3.19
+
+# ---- 开发 / 测试 (dev) ----
+pytest==8.4.2
+httpx==0.28.1
+ruff==0.16.8

@@ -1,0 +1,25 @@
+# 环境
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# 模型权重 (不入库, 需自行下载/放置, 见 DEPLOYMENT.md)
+models/
+
+# 评测产物
+data/eval_report.json
+data/eval_online*.log
+
+# 缓存与日志
+.pytest_cache/
+.ruff_cache/
+*.log
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store

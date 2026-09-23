@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aletheia"
+version = "1.0.0"
+description = "Aletheia 澄明 — 推理时计算 Scaling 引擎 (local RAG + inference-time compute)"
+authors = [{ name = "晨星" }]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn==0.53.0",
+    "numpy==2.5.3",
+    "onnxruntime==1.30.0",
+    "tokenizers==0.23.2",
+    "faiss-cpu==1.15.0",
+    "rank-bm25==0.2.2",
+    "pypdf==6.18.1",
+    "llama-cpp-python==0.3.19",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.2", "httpx==0.28.1", "ruff==0.16.8"]
+
+[project.scripts]
+aletheia = "aletheia.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

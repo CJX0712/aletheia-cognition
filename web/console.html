@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Aletheia 澄明 · 推理时计算控制台</title>
+<style>
+  /* ===== 设计令牌：所有颜色/间距/动效均走 CSS 变量，禁止硬编码 ===== */
+  :root {
+    /* 色彩（浅色主题，蓝/青主色系） */
+    --c-primary: #185FA5;        /* 主蓝 */
+    --c-primary-strong: #0F4C85; /* 主蓝按下 */
+    --c-accent: #0F6E56;         /* 青绿辅助色 */
+    --c-bg: #EEF2F6;             /* 页面底色 */
+    --c-surface: #FFFFFF;        /* 卡片表面 */
+    --c-surface-2: #F5F8FB;      /* 次级表面/输入底 */
+    --c-border: #D6DEE7;         /* 描边 */
+    --c-border-strong: #B9C5D2;  /* 强描边 */
+    --c-text: #1B2733;           /* 主文字（非纯黑） */
+    --c-text-2: #56636F;         /* 次级文字 */
+    --c-text-muted: #8A95A2;     /* 弱文字 */
+    --c-success: #0F7A4D;        /* 成功/在线 */
+    --c-warn: #B7791F;           /* 警告 */
+    --c-error: #B83A2B;          /* 错误 */
+    --c-focus-ring: rgba(24, 95, 165, 0.32);
+
+    /* 阴影（浅色柔和，不用霓虹发光） */
+    --shadow-sm: 0 1px 2px rgba(16, 32, 48, 0.06), 0 2px 6px rgba(16, 32, 48, 0.05);
+    --shadow-md: 0 4px 14px rgba(16, 32, 48, 0.09);
+
+    /* 圆角 */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+
+    /* 动效与时序（150ms 收敛过渡） */
+    --motion-fast: 150ms;
+    --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* 字体 */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code",
+      Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--c-bg);
+    color: var(--c-text);
+    line-height: 1.55;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 可访问性：键盘焦点环 */
+  :focus-visible {
+    outline: 3px solid var(--c-focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* 降低动效偏好支持 */
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ===== 布局 ===== */
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px; }
+
+  header.topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .brand .logo {
+    width: 40px; height: 40px; flex: none;
+    display: grid; place-items: center;
+    border-radius: var(--radius-md);
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    color: var(--c-primary);
+  }
+  .brand h1 {
+    font-size: 17px; font-weight: 600; margin: 0;
+    letter-spacing: -0.01em; line-height: 1.25;
+  }
+  .brand p { margin: 2px 0 0; font-size: 12px; color: var(--c-text-2); }
+
+  /* 健康检查 + 服务地址 */
+  .health { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .health-pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 999px;
+    border: 1px solid var(--c-border);
+    background: var(--c-surface-2);
+    font-size: 12.5px; font-weight: 510;
+    color: var(--c-text-2);
+  }
+  .health-pill .ico { width: 16px; height: 16px; flex: none; }
+  .health-pill.ok { color: var(--c-success); border-color: rgba(15,122,77,0.35); background: rgba(15,122,77,0.07); }
+  .health-pill.err { color: var(--c-error); border-color: rgba(184,58,43,0.35); background: rgba(184,58,43,0.07); }
+  .health-pill.checking { color: var(--c-text-2); }
+
+  .base-url {
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .base-url input {
+    font-family: var(--font-mono); font-size: 12px;
+    width: 168px; padding: 6px 10px;
+    border: 1px solid var(--c-border); border-radius: var(--radius-sm);
+    background: var(--c-surface); color: var(--c-text);
+  }
+  .base-url input:focus { border-color: var(--c-primary); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: 20px;
+    margin-top: 20px;
+  }
+  @media (max-width: 880px) {
+    .grid { grid-template-columns: 1fr; }
+    .wrap { padding: 14px; }
+  }
+
+  .card {
+    background: var(--c-surface);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 18px;
+  }
+  .card + .card { margin-top: 20px; }
+
+  .card-head {
+    display: flex; align-items: center; gap: 9px;
+    margin-bottom: 14px;
+  }
+  .card-head .ico { width: 20px; height: 20px; color: var(--c-primary); flex: none; }
+  .card-head h2 { font-size: 14.5px; font-weight: 600; margin: 0; letter-spacing: -0.005em; }
+
+  label.field-label {
+    display: block; font-size: 12.5px; font-weight: 510;
+    color: var(--c-text-2); margin: 0 0 6px;
+  }
+
+  textarea, input[type="text"] {
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: 13.5px;
+    color: var(--c-text);
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    resize: vertical;
+    transition: border-color var(--motion-fast) var(--ease-standard),
+                box-shadow var(--motion-fast) var(--ease-standard);
+  }
+  textarea:focus, input[type="text"]:focus {
+    border-color: var(--c-primary);
+    background: var(--c-surface);
+    box-shadow: 0 0 0 3px var(--c-focus-ring);
+  }
+  textarea { min-height: 150px; line-height: 1.6; }
+  #queryInput { min-height: 96px; }
+
+  .row-inline { display: flex; gap: 10px; }
+  .row-inline > * { flex: 1; min-width: 0; }
+
+  /* 按钮 */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: var(--font-sans); font-size: 13.5px; font-weight: 560;
+    padding: 10px 16px;
+    border-radius: var(--radius-md);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background-color var(--motion-fast) var(--ease-standard),
+                transform var(--motion-fast) var(--ease-standard),
+                box-shadow var(--motion-fast) var(--ease-standard),
+                border-color var(--motion-fast) var(--ease-standard);
+    user-select: none;
+  }
+  .btn .ico { width: 18px; height: 18px; }
+  .btn-primary { background: var(--c-primary); color: #fff; }
+  .btn-primary:hover { background: var(--c-primary-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-ghost { background: var(--c-surface); color: var(--c-primary); border-color: var(--c-border); }
+  .btn-ghost:hover { border-color: var(--c-primary); background: var(--c-surface-2); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  .btn-block { width: 100%; }
+
+  /* 反馈条 */
+  .feedback {
+    margin-top: 12px; font-size: 13px;
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-radius: var(--radius-md);
+    border: 1px solid var(--c-border); background: var(--c-surface-2);
+    color: var(--c-text-2);
+    opacity: 0; max-height: 0; overflow: hidden; padding-top: 0; padding-bottom: 0;
+    transition: opacity var(--motion-fast) var(--ease-standard),
+                max-height var(--motion-fast) var(--ease-standard),
+                padding var(--motion-fast) var(--ease-standard);
+  }
+  .feedback.show { opacity: 1; max-height: 80px; padding-top: 9px; padding-bottom: 9px; }
+  .feedback .ico { width: 16px; height: 16px; flex: none; }
+  .feedback.ok { color: var(--c-success); border-color: rgba(15,122,77,0.3); background: rgba(15,122,77,0.06); }
+  .feedback.err { color: var(--c-error); border-color: rgba(184,58,43,0.3); background: rgba(184,58,43,0.06); }
+  .feedback .ico { color: currentColor; }
+
+  /* 滑块 */
+  .slider-row { display: flex; align-items: center; gap: 12px; }
+  .slider-row input[type="range"] { flex: 1; accent-color: var(--c-primary); height: 4px; }
+  .slider-val {
+    font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+    min-width: 34px; text-align: center;
+    padding: 3px 8px; border-radius: var(--radius-sm);
+    background: var(--c-surface-2); border: 1px solid var(--c-border); color: var(--c-primary);
+  }
+
+  select {
+    width: 100%; font-family: var(--font-sans); font-size: 13.5px;
+    color: var(--c-text); background: var(--c-surface-2);
+    border: 1px solid var(--c-border); border-radius: var(--radius-md);
+    padding: 10px 12px; cursor: pointer;
+    transition: border-color var(--motion-fast) var(--ease-standard);
+  }
+  select:focus { border-color: var(--c-primary); background: var(--c-surface); }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+
+  /* 结果区 */
+  .result-meta {
+    display: flex; flex-wrap: wrap; gap: 14px 22px;
+    padding: 14px 0; border-top: 1px solid var(--c-border);
+    border-bottom: 1px solid var(--c-border); margin: 14px 0;
+  }
+  .meta-item { display: flex; align-items: center; gap: 8px; }
+  .meta-item .ico { width: 18px; height: 18px; color: var(--c-text-2); flex: none; }
+  .meta-item .meta-k { font-size: 11.5px; color: var(--c-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  .meta-item .meta-v { font-size: 14px; font-weight: 600; color: var(--c-text); font-family: var(--font-mono); }
+
+  /* 进度条（分值） */
+  .score-bar-wrap { display: flex; align-items: center; gap: 10px; margin: 4px 0 2px; }
+  .score-bar {
+    flex: 1; height: 8px; border-radius: 999px;
+    background: var(--c-surface-2); border: 1px solid var(--c-border); overflow: hidden;
+  }
+  .score-bar > i {
+    display: block; height: 100%; border-radius: 999px;
+    background: var(--c-accent);
+    transition: width 320ms var(--ease-standard);
+  }
+  .score-num { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--c-accent); min-width: 46px; text-align: right; }
+
+  .answer-box {
+    background: var(--c-surface-2);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    font-size: 14px; line-height: 1.7; color: var(--c-text);
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  /* 折叠区块 */
+  .disclosure { border: 1px solid var(--c-border); border-radius: var(--radius-md); margin-top: 14px; overflow: hidden; }
+  .disclosure > summary {
+    list-style: none; cursor: pointer;
+    display: flex; align-items: center; gap: 9px;
+    padding: 11px 14px; background: var(--c-surface-2);
+    font-size: 13px; font-weight: 560; color: var(--c-text);
+    user-select: none;
+  }
+  .disclosure > summary::-webkit-details-marker { display: none; }
+  .disclosure > summary .ico { width: 18px; height: 18px; color: var(--c-primary); flex: none; }
+  .disclosure > summary .chev { width: 16px; height: 16px; margin-left: auto; color: var(--c-text-muted); transition: transform var(--motion-fast) var(--ease-standard); }
+  .disclosure[open] > summary .chev { transform: rotate(180deg); }
+  .disclosure > .body { padding: 14px; border-top: 1px solid var(--c-border); }
+
+  /* 推理轨迹步骤 */
+  .step {
+    border: 1px solid var(--c-border); border-radius: var(--radius-md);
+    padding: 12px 14px; margin-bottom: 12px; background: var(--c-surface);
+  }
+  .step:last-child { margin-bottom: 0; }
+  .step-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .tag {
+    font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+    padding: 2px 9px; border-radius: 999px;
+    background: rgba(24,95,165,0.1); color: var(--c-primary);
+    border: 1px solid rgba(24,95,165,0.22);
+  }
+  .tag.accent { background: rgba(15,110,86,0.1); color: var(--c-accent); border-color: rgba(15,110,86,0.22); }
+  .step-idx { font-size: 12px; color: var(--c-text-muted); font-weight: 600; }
+  .step-text { font-size: 13px; line-height: 1.65; color: var(--c-text); white-space: pre-wrap; word-break: break-word; }
+  .step-prompt { font-size: 12px; color: var(--c-text-2); margin: 8px 0; padding: 8px 10px; background: var(--c-surface-2); border-radius: var(--radius-sm); border: 1px dashed var(--c-border-strong); white-space: pre-wrap; word-break: break-word; }
+
+  /* 检索上下文 */
+  .ctx {
+    border: 1px solid var(--c-border); border-radius: var(--radius-md);
+    padding: 12px 14px; margin-bottom: 12px; background: var(--c-surface);
+  }
+  .ctx:last-child { margin-bottom: 0; }
+  .ctx-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+  .ctx-meta { display: flex; gap: 14px; font-size: 11.5px; color: var(--c-text-muted); font-family: var(--font-mono); }
+  .ctx-text { font-size: 13px; line-height: 1.65; color: var(--c-text-2); white-space: pre-wrap; word-break: break-word; }
+
+  .empty-hint { color: var(--c-text-muted); font-size: 13px; padding: 4px 0; }
+  .muted { color: var(--c-text-muted); }
+
+  /* 骨架/加载旋转 */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 0.9s linear infinite; transform-origin: center; }
+  .loading-line { display: inline-flex; align-items: center; gap: 8px; color: var(--c-text-2); font-size: 13px; }
+
+  /* 状态区占位 */
+  #resultArea .placeholder { color: var(--c-text-muted); font-size: 13.5px; padding: 8px 0; text-align: center; }
+
+  .footer { margin-top: 22px; text-align: center; color: var(--c-text-muted); font-size: 12px; }
+  .footer code { font-family: var(--font-mono); background: var(--c-surface); padding: 1px 6px; border-radius: var(--radius-sm); border: 1px solid var(--c-border); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ============ 顶栏：品牌 + 健康检查 ============ -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <!-- 几何图标：同心圆 + 中点（澄明/聚焦语义） -->
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"></circle>
+          <circle cx="12" cy="12" r="4.5"></circle>
+          <circle cx="12" cy="12" r="1"></circle>
+        </svg>
+      </span>
+      <div>
+        <h1>Aletheia 澄明 · 推理时计算控制台</h1>
+        <p>本地推理时计算（Test-time Compute）检索增强问答工作台</p>
+      </div>
+    </div>
+
+    <div class="health">
+      <span class="base-url" title="后端服务地址">
+        <input id="baseUrl" type="text" value="http://127.0.0.1:8000" spellcheck="false" aria-label="后端服务地址" />
+      </span>
+      <!-- 健康检查状态 pill（图标随状态切换，纯 SVG 非 emoji） -->
+      <span id="healthPill" class="health-pill checking" role="status" aria-live="polite">
+        <span class="ico" id="healthIcon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" class="spin">
+            <path d="M12 3a9 9 0 1 0 9 9"></path>
+          </svg>
+        </span>
+        <span id="healthText">检测中…</span>
+      </span>
+      <button id="healthBtn" class="btn btn-ghost" type="button" title="重新检测">
+        <span class="ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 11a8 8 0 1 0-1.5 5"></path><path d="M20 5v6h-6"></path>
+          </svg>
+        </span>
+        检测
+      </button>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- ============ 左栏：文档录入 ============ -->
+    <div>
+      <section class="card">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">
+            <!-- 文档图标：矩形 + 文本行 -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="3" width="14" height="18" rx="2"></rect>
+              <path d="M9 8h6M9 12h6M9 16h4"></path>
+            </svg>
+          </span>
+          <h2>文档录入</h2>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="docId">文档标识（可选）</label>
+          <input id="docId" type="text" placeholder="留空则由系统自动生成 doc_id" spellcheck="false" />
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="docText">文档内容</label>
+          <textarea id="docText" placeholder="将待检索的文档/知识粘贴到此处，系统会切分并写入本地向量库（FAISS）…"></textarea>
+        </div>
+
+        <button id="ingestBtn" class="btn btn-primary btn-block" type="button">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 16V4"></path><path d="M7 9l5-5 5 5"></path>
+              <path d="M4 20h16"></path>
+            </svg>
+          </span>
+          录入文档
+        </button>
+
+        <div id="ingestFeedback" class="feedback" role="status" aria-live="polite"></div>
+      </section>
+    </div>
+
+    <!-- ============ 右栏：提问 + 结果 ============ -->
+    <div>
+      <section class="card">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">
+            <!-- 推理/灯泡：几何灯泡 -->
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18h6M10 21h4"></path>
+              <path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"></path>
+            </svg>
+          </span>
+          <h2>提问与推理策略</h2>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="queryInput">你的问题</label>
+          <textarea id="queryInput" placeholder="例如：根据已录入文档，说明推理时计算（best_of_n）相较贪心解码的差异？"></textarea>
+        </div>
+
+        <div class="row-inline">
+          <div class="field">
+            <label class="field-label" for="strategySel">推理策略</label>
+            <select id="strategySel">
+              <option value="greedy">greedy · 贪心解码</option>
+              <option value="best_of_n" selected>best_of_n · 多采样择优</option>
+              <option value="self_consistency">self_consistency · 自洽投票</option>
+              <option value="beam">beam · 束搜索</option>
+              <option value="refine_reflect">refine_reflect · 反思精炼</option>
+            </select>
+          </div>
+          <div class="field">
+            <label class="field-label" for="nRange">采样数 n</label>
+            <div class="slider-row">
+              <input id="nRange" type="range" min="1" max="12" step="1" value="4" aria-label="采样数 n" />
+              <span class="slider-val" id="nVal">4</span>
+            </div>
+          </div>
+        </div>
+
+        <button id="askBtn" class="btn btn-primary btn-block" type="button">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12l16-7-7 16-2.5-6.5L4 12z"></path>
+            </svg>
+          </span>
+          提交推理
+        </button>
+      </section>
+
+      <!-- 结果区 -->
+      <section class="card">
+        <div class="card-head">
+          <span class="ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"></circle>
+              <circle cx="12" cy="12" r="5"></circle>
+              <circle cx="12" cy="12" r="1.5"></circle>
+            </svg>
+          </span>
+          <h2>推理结果</h2>
+        </div>
+
+        <div id="resultArea">
+          <div class="placeholder">提交一个问题后，这里将展示最终答案、置信度与推理轨迹。</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="footer">
+    后端契约：<code>POST /ingest</code> · <code>POST /ask</code> · <code>GET /healthz</code>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---- DOM 引用 ----
+  var baseUrlEl = document.getElementById("baseUrl");
+  var healthPill = document.getElementById("healthPill");
+  var healthIcon = document.getElementById("healthIcon");
+  var healthText = document.getElementById("healthText");
+  var healthBtn = document.getElementById("healthBtn");
+
+  var docIdEl = document.getElementById("docId");
+  var docTextEl = document.getElementById("docText");
+  var ingestBtn = document.getElementById("ingestBtn");
+  var ingestFeedback = document.getElementById("ingestFeedback");
+
+  var queryInput = document.getElementById("queryInput");
+  var strategySel = document.getElementById("strategySel");
+  var nRange = document.getElementById("nRange");
+  var nVal = document.getElementById("nVal");
+  var askBtn = document.getElementById("askBtn");
+  var resultArea = document.getElementById("resultArea");
+
+  // ---- 工具函数 ----
+  function apiBase() {
+    var v = (baseUrlEl.value || "").trim().replace(/\/+$/, "");
+    return v || "http://127.0.0.1:8000";
+  }
+
+  // 转义 HTML，防止 XSS（后端文本回显到 DOM）
+  function esc(s) {
+    if (s === null || s === undefined) return "";
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function setBtnLoading(btn, on, labelRestore) {
+    if (on) {
+      btn.disabled = true;
+      btn.dataset.label = btn.dataset.label || btn.innerHTML;
+      btn.innerHTML =
+        '<span class="ico spin" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"></path></svg></span>' +
+        "<span>" + (labelRestore || "处理中…") + "</span>";
+    } else {
+      btn.disabled = false;
+      if (btn.dataset.label) btn.innerHTML = btn.dataset.label;
+    }
+  }
+
+  function showFeedback(el, type, html) {
+    el.className = "feedback show " + type;
+    el.innerHTML = html;
+  }
+  function hideFeedback(el) { el.className = "feedback"; el.innerHTML = ""; }
+
+  // SVG 图标片段（复用，纯描边）
+  var ICON = {
+    ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9"></path></svg>',
+    err: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><path d="M9 9l6 6M15 9l-6 6"></path></svg>',
+    warn: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 16H3z"></path><path d="M12 10v4M12 17h.01"></path></svg>',
+    chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>',
+    layers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z"></path><path d="M3 13l9 5 9-5"></path></svg>',
+    clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2M9 2h6"></path></svg>',
+    gauge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="5"></circle><circle cx="12" cy="12" r="1.5"></circle></svg>'
+  };
+
+  // ---- 健康检查 ----
+  function renderHealth(state, text) {
+    healthPill.className = "health-pill " + state;
+    if (state === "ok") {
+      healthIcon.innerHTML = ICON.ok;
+      healthText.textContent = text || "服务在线";
+    } else if (state === "err") {
+      healthIcon.innerHTML = ICON.err;
+      healthText.textContent = text || "服务不可用";
+    } else {
+      healthIcon.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" class="spin"><path d="M12 3a9 9 0 1 0 9 9"></path></svg>';
+      healthText.textContent = text || "检测中…";
+    }
+  }
+
+  function checkHealth() {
+    renderHealth("checking", "检测中…");
+    var url = apiBase() + "/healthz";
+    fetch(url, { method: "GET", headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        // 展示各组件状态（embed/store/rerank/llm）
+        var comps = data && data.components ? data.components : {};
+        var parts = [];
+        for (var k in comps) {
+          if (Object.prototype.hasOwnProperty.call(comps, k)) parts.push(k + ":" + comps[k]);
+        }
+        renderHealth("ok", "服务在线 · " + parts.join(" / "));
+      })
+      .catch(function (e) {
+        renderHealth("err", "服务不可用（" + e.message + "）");
+      });
+  }
+
+  // ---- 文档录入 ----
+  function doIngest() {
+    var text = docTextEl.value.trim();
+    if (!text) {
+      showFeedback(ingestFeedback, "err",
+        '<span class="ico">' + ICON.warn + "</span><span>请先粘贴文档内容再录入。</span>");
+      return;
+    }
+    hideFeedback(ingestFeedback);
+    setBtnLoading(ingestBtn, true, "录入中…");
+
+    var body = { text: text };
+    var docId = docIdEl.value.trim();
+    if (docId) body.doc_id = docId;
+
+    fetch(apiBase() + "/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw e; }, function () { throw new Error("HTTP " + r.status); });
+        return r.json();
+      })
+      .then(function (data) {
+        setBtnLoading(ingestBtn, false);
+        var chunks = data && typeof data.ingested_chunks !== "undefined" ? data.ingested_chunks : "?";
+        var total = data && typeof data.total_chunks !== "undefined" ? data.total_chunks : "?";
+        var did = data && data.doc_id ? data.doc_id : (docId || "—");
+        showFeedback(ingestFeedback, "ok",
+          '<span class="ico">' + ICON.ok +
+          "</span><span>已录入，本批切片 <strong>" + esc(chunks) +
+          "</strong> 段（库内共 " + esc(total) + " 段）· doc_id: " + esc(did) + "</span>");
+      })
+      .catch(function (e) {
+        setBtnLoading(ingestBtn, false);
+        var msg = (e && (e.detail || e.message)) ? (e.detail || e.message) : "网络或后端错误";
+        showFeedback(ingestFeedback, "err",
+          '<span class="ico">' + ICON.err + "</span><span>录入失败：" + esc(msg) + "</span>");
+      });
+  }
+
+  // ---- 提问推理 ----
+  function scorePct(v) {
+    var n = Number(v);
+    if (!isFinite(n)) return 0;
+    return Math.max(0, Math.min(1, n)) * 100;
+  }
+
+  function renderScoreBar(value) {
+    var pct = scorePct(value).toFixed(1);
+    return '<div class="score-bar-wrap">' +
+      '<div class="score-bar"><i style="width:' + pct + '%"></i></div>' +
+      '<span class="score-num">' + pct + "%</span></div>";
+  }
+
+  function renderSteps(steps) {
+    if (!steps || !steps.length) return '<p class="empty-hint">本次策略未返回中间步骤。</p>';
+    var html = '<div class="disclosure"><details open>' +
+      '<summary><span class="ico">' + ICON.layers + "</span><span>推理轨迹（" + steps.length + " 步）</span>" +
+      '<span class="chev">' + ICON.chev + "</span></summary><div class=\"body\">";
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i] || {};
+      var strat = s.strategy || "—";
+      var sv = s.score && typeof s.score.value !== "undefined" ? s.score.value : null;
+      var method = s.score && s.score.method ? s.score.method : "—";
+      html += '<div class="step">';
+      html += '<div class="step-head"><span class="step-idx"># ' + (i + 1) + '</span>' +
+        '<span class="tag">' + esc(strat) + '</span>' +
+        (sv !== null ? '<span class="tag accent">分 ' + esc(sv) + ' · ' + esc(method) + '</span>' : '') +
+        '</div>';
+      if (s.prompt) {
+        html += '<div class="step-prompt">提示词：' + esc(s.prompt) + '</div>';
+      }
+      html += '<div class="step-text">' + esc(s.text || "（无文本）") + '</div>';
+      html += '</div>';
+    }
+    html += "</div></details></div>";
+    return html;
+  }
+
+  function renderContexts(contexts) {
+    if (!contexts || !contexts.length) return '<p class="empty-hint">未检索到相关上下文片段。</p>';
+    var html = '<div class="disclosure"><details>' +
+      '<summary><span class="ico">' + ICON.layers + "</span><span>检索上下文（" + contexts.length + " 段）</span>" +
+      '<span class="chev">' + ICON.chev + "</span></summary><div class=\"body\">";
+    for (var i = 0; i < contexts.length; i++) {
+      var c = contexts[i] || {};
+      var sc = typeof c.score !== "undefined" ? c.score : null;
+      html += '<div class="ctx">';
+      html += '<div class="ctx-head"><span class="tag">' + esc(c.doc_id || "—") + '</span>' +
+        '<span class="ctx-meta"><span>chunk: ' + esc(c.chunk_id || "—") + '</span></span></div>';
+      if (sc !== null) {
+        html += renderScoreBar(sc);
+      }
+      html += '<div class="ctx-text">' + esc(c.text || "（空）") + '</div>';
+      html += '</div>';
+    }
+    html += "</div></details></div>";
+    return html;
+  }
+
+  function renderResult(data) {
+    var answer = data && data.answer ? data.answer : "（无答案）";
+    var strat = data && data.strategy ? data.strategy : "—";
+    var finalScore = data && typeof data.final_score !== "undefined" ? data.final_score : null;
+    var wallMs = data && typeof data.wall_ms !== "undefined" ? data.wall_ms : null;
+    var steps = data && data.steps ? data.steps : [];
+    var contexts = data && data.contexts ? data.contexts : [];
+
+    var metaHtml = '<div class="result-meta">' +
+      '<div class="meta-item"><span class="ico">' + ICON.gauge + "</span>" +
+        '<div><div class="meta-k">策略</div><div class="meta-v">' + esc(strat) + "</div></div></div>" +
+      '<div class="meta-item"><span class="ico">' + ICON.clock + "</span>" +
+        '<div><div class="meta-k">耗时</div><div class="meta-v">' +
+        (wallMs !== null ? esc(wallMs) + " ms" : "—") + "</div></div></div>" +
+      "</div>";
+
+    var scoreHtml = finalScore !== null
+      ? '<div class="field-label" style="margin-bottom:4px;">最终置信度 final_score</div>' + renderScoreBar(finalScore)
+      : '<p class="muted">未返回置信度评分。</p>';
+
+    resultArea.innerHTML =
+      metaHtml +
+      scoreHtml +
+      '<div class="field-label" style="margin:16px 0 6px;">最终答案</div>' +
+      '<div class="answer-box">' + esc(answer) + "</div>" +
+      renderSteps(steps) +
+      renderContexts(contexts);
+  }
+
+  function doAsk() {
+    var q = queryInput.value.trim();
+    if (!q) {
+      resultArea.innerHTML = '<div class="placeholder">请先在上方输入你的问题。</div>';
+      return;
+    }
+    setBtnLoading(askBtn, true, "推理中…");
+    resultArea.innerHTML = '<div class="loading-line" style="padding:8px 0;">' +
+      '<span class="ico spin"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"></path></svg></span>' +
+      "<span>正在调用推理时计算策略，请稍候…</span></div>";
+
+    var body = {
+      query: q,
+      strategy: strategySel.value,
+      n: parseInt(nRange.value, 10) || 1
+    };
+
+    fetch(apiBase() + "/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    })
+      .then(function (r) {
+        if (!r.ok) return r.json().then(function (e) { throw e; }, function () { throw new Error("HTTP " + r.status); });
+        return r.json();
+      })
+      .then(function (data) {
+        setBtnLoading(askBtn, false);
+        renderResult(data);
+      })
+      .catch(function (e) {
+        setBtnLoading(askBtn, false);
+        var msg = (e && (e.detail || e.message)) ? (e.detail || e.message) : "无法连接后端，请确认服务已启动且地址正确。";
+        resultArea.innerHTML =
+          '<div class="feedback show err" style="opacity:1;max-height:none;padding:12px;">' +
+          '<span class="ico">' + ICON.err + "</span>" +
+          "<span>推理请求失败：" + esc(msg) + "</span></div>";
+      });
+  }
+
+  // ---- 事件绑定 ----
+  nRange.addEventListener("input", function () { nVal.textContent = nRange.value; });
+  ingestBtn.addEventListener("click", doIngest);
+  askBtn.addEventListener("click", doAsk);
+  healthBtn.addEventListener("click", checkHealth);
+  baseUrlEl.addEventListener("change", checkHealth);
+
+  // 进入页面即检测后端健康
+  checkHealth();
+})();
+</script>
+</body>
+</html>
