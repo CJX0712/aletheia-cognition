@@ -1,5 +1,12 @@
 # Aletheia 澄明 · v1.0
 
+<p align="center">
+  <a href="https://github.com/CJX0712/aletheia-cognition/actions/workflows/ci.yml"><img src="https://github.com/CJX0712/aletheia-cognition/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://github.com/CJX0712/aletheia-cognition/releases"><img src="https://img.shields.io/github/v/release/CJX0712/aletheia-cognition?sort=semver" alt="release"></a>
+  <a href="https://github.com/CJX0712/aletheia-cognition/blob/main/LICENSE"><img src="https://img.shields.io/github/license/CJX0712/aletheia-cognition" alt="license"></a>
+  <img src="https://img.shields.io/badge/author-%E6%99%A8%E6%98%9F-1f6feb" alt="author">
+</p>
+
 > 推理时计算 Scaling 引擎 — 让 1.5B 本地小模型，通过推理时计算扩展
 > （inference-time compute scaling）达到远超单 pass 的推理质量。
 > 纯 CPU 可跑、零外部 API、离线可验证。
