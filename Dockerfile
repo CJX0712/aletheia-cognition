@@ -7,7 +7,7 @@
 # llama-cpp-python (本地 GGUF 推理) 需要编译工具链, 默认不安装 —— 镜像默认使用
 # 离线 MockLLM 后端, 开箱即用。需要真实本地推理时:
 #   docker build --build-arg WITH_LLAMACPP=1 -t aletheia .
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src \
