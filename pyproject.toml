@@ -16,10 +16,10 @@ dependencies = [
     "numpy==2.5.3",
     "onnxruntime==1.30.0",
     "tokenizers==0.23.2",
-    "faiss-cpu==1.15.0",
+    "faiss-cpu==1.15.1",
     "rank-bm25==0.2.2",
-    "pypdf==6.18.1",
-    "llama-cpp-python==0.3.19",
+    "pypdf==6.19.0",
+    "llama-cpp-python==0.3.35",
 ]
 
 [project.optional-dependencies]
