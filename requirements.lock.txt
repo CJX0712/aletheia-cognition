@@ -5,17 +5,17 @@
 # 镜像源(国内): 见 Makefile 中 PIP_INDEX 变量.
 
 # ---- 运行时 (runtime) ----
-fastapi==0.141.1
-uvicorn==0.53.0
+fastapi==0.143.0
+uvicorn==0.54.0
 numpy==2.5.3
-onnxruntime==1.30.0
-tokenizers==0.23.2
-faiss-cpu==1.15.0
+onnxruntime==1.31.0
+tokenizers==0.23.3
+faiss-cpu==1.15.1
 rank-bm25==0.2.2
-pypdf==6.18.1
-llama-cpp-python==0.3.19
+pypdf==6.20.0
+llama-cpp-python==0.3.36
 
 # ---- 开发 / 测试 (dev) ----
 pytest==8.4.2
 httpx==0.28.1
-ruff==0.16.8
+ruff==0.17.0

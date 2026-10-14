@@ -11,19 +11,19 @@ license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "fastapi==0.141.1",
-    "uvicorn==0.53.0",
+    "fastapi==0.143.0",
+    "uvicorn==0.54.0",
     "numpy==2.5.3",
-    "onnxruntime==1.30.0",
-    "tokenizers==0.23.2",
-    "faiss-cpu==1.15.0",
+    "onnxruntime==1.31.0",
+    "tokenizers==0.23.3",
+    "faiss-cpu==1.15.1",
     "rank-bm25==0.2.2",
-    "pypdf==6.18.1",
-    "llama-cpp-python==0.3.19",
+    "pypdf==6.20.0",
+    "llama-cpp-python==0.3.36",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest==8.4.2", "httpx==0.28.1", "ruff==0.16.8"]
+dev = ["pytest==8.4.2", "httpx==0.28.1", "ruff==0.17.0"]
 
 [project.scripts]
 aletheia = "aletheia.cli:main"
